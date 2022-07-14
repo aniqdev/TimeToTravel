@@ -1,0 +1,1513 @@
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name='viewport' content='width=device-width, initial-scale=1' />
+  <title>Редактор маршрутов</title>
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>  
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css' rel='stylesheet' />  
+  <style>
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+}
+
+.sight {
+  width: 60;
+  height:  60;
+  background-color: transparent;
+  cursor: pointer;
+  z-index: 0;
+}
+
+.sightBack {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid #526AE8;  
+  background-color: #526AE8;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  z-index: 1;  
+}
+
+.sightImage {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border-width: 0;
+  border: 0;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);  
+  z-index: 2;
+}
+
+.sightNumber {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;  
+  color: white;  
+  background-color: #526AE8;  
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translateX(+0px) translateY(+0px);
+  z-index: 3;
+
+  font-size: 16px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 24px;
+}
+
+.pathDot {
+  width: 16px;
+  height:  16px;
+  background-color: transparent;
+  cursor: pointer;
+  z-index: 0;
+}
+.pathDotBack {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #526AE8;  
+  background-color: #526AE8;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  z-index: 1;  
+}
+.pathDotNumber {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;  
+  color: white;  
+  background-color: #526AE8;  
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  z-index: 3;
+
+  font-size: 10px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 10px;
+}
+
+.contextMenu {
+  width: 220px;
+  height: 104px;
+  border-radius: 5px;
+  border: 0;
+  background-color: white;
+  color: black;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 14px;
+}
+
+.contextMenuElement {
+  width: 200px;
+  height: 26px;
+  padding-left: 10px;
+  padding-right:  10px;
+
+  font-size: 14px;
+  text-align: left;
+  vertical-align: middle;
+  line-height: 26px;
+}
+.contextMenuElementDisabled {
+  color: grey;
+}
+
+.contextMenuElement:hover {
+  background-color: #526AE8;
+  color: white;  
+}
+
+#map {
+  display: inline-block;
+}
+
+
+.mapboxgl-canvas-container.mapboxgl-interactive, 
+.mapboxgl-ctrl-group button.mapboxgl-ctrl-compass { 
+  cursor: default 
+}
+
+
+#sight-edit-control {
+  display: inline-block;
+  width: 200px;
+  vertical-align: top;  
+  display: none;
+}
+
+#map-top-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* padding:  5px; */
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  /* background-color: white;  */
+}
+
+#map-style {
+  padding: 5px;
+  background-color: white;
+  vertical-align: top;
+  
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 122px;
+  height: 23px;
+}
+
+#map-coordinates {
+  padding: 5px;
+  background-color: white;
+  vertical-align: middle;
+  text-align: center;
+
+  position: absolute;
+  top: 0;
+  left: 132px;
+  z-index: 10;
+  width: 104px;
+  height: 23px;
+  line-height: 23px;
+}
+
+#map-controls {
+  padding: 7px;
+  background-color: white;
+  width: 300px;
+  /* height: 100px; */
+  margin: 0;
+
+  /*
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  */
+}
+
+.dialog {
+  display:none;
+  position: absolute;
+  z-index: 10;
+  width: 400px;
+  height: 200px;
+  background-color: rgba(255,255,255,255); /* Black w/ opacity*/
+  border-radius: 5px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);  
+  /* border: 1px solid gray; */
+  padding: 0px;
+  overflow: auto;
+  
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+
+  margin: auto;
+}
+
+.routeEditDialog {
+
+  width: 400px;
+  height: 290px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.sightEditDialog {
+
+  width: 610px;
+  height: 385px;
+  padding: 10px;
+  font-size: 14px;  
+}
+
+
+textarea {
+  overflow-x: auto;
+  overflow-y: auto;
+  resize: none;
+  width: 400px;
+}
+
+  </style>
+</head>
+<body>
+
+<div id='map' style='width: 100%; height: 100%;'>
+
+  <div id='map-coordinates'>
+    0.0, 0.0
+  </div>
+
+  <div id='map-style'>
+    <select id='map-style-select' onchange='setMapStyle( this.value )'>
+      <option value='mapbox://styles/mapbox/satellite-streets-v11'>Спутник</option>
+      <option value='mapbox://styles/mapbox/streets-v11'>По умолчанию</option>
+    </select>
+  </div>
+
+  <div id='map-top-right'>
+
+    <div id='map-controls'>
+
+      <div style='display: flex'>
+        <div id='route-title' style='width: 220px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>Без названия</div>
+        <button style='width: 70px; margin-left: 10px ' onclick='showRouteEdit()'>Изменить</button>
+      </div>
+
+      <div style='display: flex; margin-top: 5px'>
+        <button id='build-route-button' onclick='buildRoute()' style='flex-grow: 0'>Построить маршрут</button>
+
+        <select id='profile' style='flex-grow: 1; margin-left: 3px'>
+          <option value='mapbox/walking'>Пеший</option>
+          <option value='mapbox/cycling'>Велосипедный</option>
+          <option value='mapbox/driving'>Автомобильный</option>
+          <option value='mapbox/driving-traffic'>С учётом пробок</option>
+        </select>
+      </div>
+
+      <div style='text-align: right; margin-top: 16px; margin-bottom: 0px'>
+        <button onclick='uploadRoute()'>Загрузить</button>
+        <button onclick='clearAll()'>Очистить всё</button>
+      </div>
+
+    </div>    
+
+  </div>  
+  
+</div>
+
+<div class='dialog routeEditDialog' >
+  Название<br>
+  <input id='route-name' type='text' value='' style='width: 100%' autocomplete='off' oninput='saveRouteData( this )'><br>
+  <br>
+  Описание<br>
+  <textarea id='route-description' type='text' value='' cols='30' rows='10' wrap='off' autocomplete='off' style='width: 100%' oninput='saveRouteData( this )'></textarea><br>
+  <br>
+  <div style='text-align: right'>
+    <button onclick='hideRouteEdit()'>Закрыть</button><br>
+  </div>
+</div>
+
+<div class='dialog sightEditDialog'>
+
+  <div style='margin-top: 5px'>
+    Номер: <span id='sight-number'>0</span>
+  </div>
+  <div>
+    <span id='sight-lat'></span>, <span id='sight-lon'></span>
+  </div>
+
+  <br>
+  Превью<br>
+  <input id='sight-preview' type='text' value='' style='width: 100%' autocomplete='off' oninput='saveSightData( this )'><br>
+
+  <br>
+  Название<br>
+  <input id='sight-name' type='text' value='' style='width: 100%' autocomplete='off' oninput='saveSightData( this )'><br>
+
+  <div style='display: flex'>
+    
+    <div style='display: inline-block; width: 300px'>
+      <br>
+      Аудио<br>
+      <input id='sight-audio' type='text' value='' style='width: 100%' autocomplete='off' oninput='saveSightData( this )'><br>
+    </div>
+    
+    <div style='display: inline-block; width: 300px; margin-left: 10px'>
+      <br>
+      Видео<br>
+      <input id='sight-video' type='text' value='' style='width: 100%' autocomplete='off' oninput='saveSightData( this )'><br>
+    </div>
+  
+  </div>  
+
+  <div style='display: flex'>
+
+    <div style='display: inline-block; width: 300px'>
+      <br>
+      Изображения<br>
+      <textarea id='sight-images' type='text' value='' rows='5' style='width: 100%' wrap='off' autocomplete='off' oninput='saveSightData( this )'></textarea><br>  
+    </div>  
+
+    <div style='display: inline-block; width: 300px; margin-left: 10px'>
+      <br>
+      Описание<br>
+      <textarea id='sight-description' type='text' value='' rows='5' style='width: 100%' wrap='off' autocomplete='off' oninput='saveSightData( this )'></textarea><br>
+    </div>
+
+  </div>
+
+  <br>
+  <div style='text-align: right'>
+    <button onclick='hideSightEdit()'>Закрыть</button>
+  </div>
+</div>
+
+<script>
+var log = console.log
+
+var defaultMapStyle = 'mapbox://styles/mapbox/satellite-streets-v11'
+var defaultRouteProfile = 'mapbox/driving'
+
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2xhdjAxIiwiYSI6ImNrMHd5Yjg0ZDAweWkzY295ZGx6MmpscDYifQ.I5L8kZNRpOOaRzNBMcJkfg';
+const map = new mapboxgl.Map({
+  container: 'map', // container ID
+  // style: 'mapbox://styles/mapbox/streets-v11', // style URL
+  style: defaultMapStyle,
+  // locale: 'ru',
+  center: [ 35.9006, 56.8584 ], // Tver
+  zoom: 12 // starting zoom
+})
+
+// map.getCanvas().style.cursor = 'default';
+
+/*
+mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js');
+map.addControl(new MapboxLanguage({
+  defaultLanguage: 'ru'
+}));
+*/
+
+// disable map rotation using right click + drag
+map.dragRotate.disable(); 
+// disable map rotation using touch rotation gesture
+map.touchZoomRotate.disableRotation();
+
+function setMapStyle( style ) {
+  map.setStyle( style )
+}
+
+document.querySelector('#map-style-select').value = defaultMapStyle
+document.querySelector('#profile').value = defaultRouteProfile
+
+function isMapClick( element ) {
+  // var element
+  do {
+    if( element.classList.contains('mapboxgl-map') )
+      return true
+    element = element.parentElement
+  }
+  while( element )
+  console.log('return false')  
+  return false
+}
+
+function isSightClick( element ) {
+  // var element
+  do {
+    if( element.classList.contains('sight') )
+      return true
+    element = element.parentElement
+  }
+  while( element )
+  // console.log('return false')  
+  return false
+}
+
+function isPathDotClick( element ) {
+  // var element
+  do {
+    if( element.classList.contains('pathDot') )
+      return true
+    element = element.parentElement
+  }
+  while( element )
+  // console.log('return false')  
+  return false
+}
+
+
+/* disable default context menu */
+window.addEventListener('contextmenu', function (e) {
+  
+  console.log('contextMenu: ', e)
+  if( isMapClick( e.target ) )
+    e.preventDefault() /* отключаем стандартное контекстное меню для карты, чтобы не мешало */
+}, 
+false)
+
+window.addEventListener('mousedown', e => {
+
+  // console.log('window.mousedown: ', e)
+  if( !isMapClick( e.target ) ) /* если нажали не по карте */
+    hideContextMenu() /* скрываем контекстное меню */
+})
+
+map.on('load', e => {
+
+  /* это место, где нужно прописать загрузку маршрута для редактирования */
+  /* из базы. */
+
+  // readRoute()
+})
+
+map.on("mousedown", (e) => {
+
+  if( contextMenuShown && e.originalEvent.target.className !== 'contextMenuElement' ) {
+     hideContextMenu()
+     return
+  }
+  if( e.originalEvent.button === 2 ) {
+
+    console.log('map.mousedown', e )
+  
+    var object
+    var lngLat
+
+    if( isSightClick( e.originalEvent.target ) )
+      object = 'sight'
+    else if( isPathDotClick( e.originalEvent.target ) )
+      object = 'pathDot'
+    else
+      object = 'map'
+    
+    lngLat = e.lngLat
+    if( object === 'sight' ) /* place to center */
+      lngLat = sights[ clickedSightIndex ].lngLat
+
+    showContextMenu( object, lngLat )
+  }
+})
+
+map.on('mousemove', e => {
+  document.querySelector('#map-coordinates').innerText = e.lngLat.lat.toFixed(4)+', '+e.lngLat.lng.toFixed(4)
+  if( sightDrag ) {
+    // console.log('map.mousemove: ', e )
+    // console.log('clickedSightIndex: ', clickedSightIndex )
+
+    var pathDotIndex = findSuitablePathDotIndex( sights[ clickedSightIndex ] )
+    movePoint( clickedSightIndex, pathDotIndex, e.lngLat )
+  }
+  else if( pathDotDrag ) {
+    // console.log('map.mousemove: ', e )
+    // console.log('clickedPathDotIndex: ', clickedPathDotIndex )
+
+    var sightIndex = findSuitableSightIndex( pathDots[ clickedPathDotIndex ] )
+    movePoint( sightIndex, clickedPathDotIndex, e.lngLat )
+  }
+})
+
+map.on('mouseup', e => {
+  sightDrag = false
+  pathDotDrag = false
+})
+
+function movePoint( sightIndex, pathDotIndex, lngLat ) {
+  // log("lngLat: ", lngLat)
+  // buildRoute()
+  if( sightIndex >= 0 ) {
+    sights[ sightIndex ].lngLat = lngLat
+    sightMarkers[ sightIndex ].setLngLat( lngLat )      
+  }
+  if( pathDotIndex >= 0 ) {
+    pathDots[ pathDotIndex ].lngLat = lngLat
+    pathDotMarkers[ pathDotIndex ].setLngLat( lngLat )
+  }
+}
+
+function findSuitablePathDotIndex( sight ) {
+
+  for( var i=0; i<pathDots.length; i++ ) 
+    if( pathDots[i].lngLat.lng === sight.lngLat.lng && 
+        pathDots[i].lngLat.lat === sight.lngLat.lat )
+      return i
+
+  return -1
+}
+
+function findSuitableSightIndex( pathDot ) {
+
+  for( var i=0; i<sights.length; i++ ) 
+    if( sights[i].lngLat.lng === pathDot.lngLat.lng && 
+        sights[i].lngLat.lat === pathDot.lngLat.lat )
+      return i
+
+  return -1
+}
+
+
+var clickLngLat = null
+var clickedSightIndex = -1
+var clickedPathDotIndex = -1
+var sightDrag = false
+var pathDotDrag = false
+
+/* sights data */
+var sights = [
+/*
+{
+  index: 0,
+  name: '',
+  description: '',
+  audio: '',
+  video: '',
+  preview: '',
+  images: ['',''],
+
+  lngLat: lngLat,
+  position: [ lat, lon ]
+}
+*/
+]
+
+/* path dots data */
+var pathDots = [
+/*
+{
+  index: 0
+  lngLat: lngLat
+}
+*/  
+]
+
+var sightMarkers = [] /* mapbox sight markers */
+var pathDotMarkers = [] /* mapbox path dot markers*/
+
+function addSight( lngLat ) {
+  
+  var sight = { 
+    index: sights.length,
+    lngLat: lngLat,
+
+    name: '',
+    description: '',
+    audio: '',
+    video: '',
+    preview: '',
+    images: [],
+    position: null
+  }
+  sights.push( sight )
+
+  addSightMarker( sight )
+
+  updateBuildRouteGui()
+
+  console.log('sights: ', sights)
+  // console.log('sightMarkers: ', sightMarkers)
+
+  /* add pathDot also automatically  */
+  if( pathDots.length == sights.length-1 )/* if equal */
+    addPathDot( lngLat )
+}
+
+function addSightMarker( sight ) {
+
+  var sightMarker
+  var sightElement = document.createElement('div')
+  sightElement.className = 'sight'
+  sightElement.addEventListener('mousedown', e => {
+    console.log("sight mousedown", e)
+    clickedSightIndex = Number( e.target.parentElement.querySelector('.sightNumber').innerText ) - 1
+    console.log('index: ', clickedSightIndex)
+    if( e.buttons === 1 ) {
+      e.stopPropagation()
+      sightDrag = true    
+    }
+    else if( e.buttons === 2 ) {
+      // ничего      
+    }
+  })
+  sightElement.addEventListener('mouseup', e => {
+    console.log("marker mouseup", e)
+    sightDrag = false
+    pathDotDrag = false
+    if( hasRoute() ) buildRoute()
+  })
+  sightElement.addEventListener('dblclick', e => {
+    if( e.button == 0 ) {
+      showSightEdit()
+      e.stopPropagation()
+    }
+  });
+
+  var sightBack = document.createElement('div')
+  sightBack.className = 'sightBack'
+
+  var sightImage = document.createElement('img')
+  sightImage.className = 'sightImage'
+  // markerImage.src = 'https://images.wallpaperscraft.ru/image/single/ozero_les_sneg_130421_1600x900.jpg'
+  sightImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' // mock image to remove borders
+
+  var sightNumber = document.createElement('div')
+  sightNumber.className = 'sightNumber'
+  sightNumber.innerText = sight.index+1
+
+  sightElement.appendChild( sightBack )
+  sightElement.appendChild( sightImage )
+  sightElement.appendChild( sightNumber )
+
+  var options = {
+    anchor: 'center'
+  }
+  sightMarker = new mapboxgl.Marker( sightElement, options )
+  sightMarker.setLngLat( sight.lngLat /* [ 35.9006, 56.8584 ]*/ )
+  sightMarker.addTo( map )
+
+  sightMarkers.push( sightMarker )
+}
+
+function addPathDot( lngLat ) {
+
+  var pathDot = { 
+    index: pathDots.length,
+    lngLat: lngLat,
+  }
+
+  var pathDotsAround = getPathDotsAround( lngLat )
+  if( !pathDotsAround ) {
+    pathDots.push( pathDot )
+    addPathDotMarker( pathDot )  
+  }
+  else {
+    pathDots.splice( pathDotsAround[1].index, 0, pathDot )
+    /* update indexes */
+    for(var i=0; i<pathDots.length; i++)
+      pathDots[i].index = i
+
+    addPathDotMarker( pathDot, pathDot.index )  
+  }
+
+  console.log('pathDots: ', pathDots )
+  // console.log('pathDotMarkers: ', pathDotMarkers )
+}
+
+function getPathDotsAround( lngLat ) {
+
+  for( var i=1; i<pathDots.length; i++ )
+    if( 
+        ( ( pathDots[i-1].lngLat.lng < lngLat.lng && lngLat.lng < pathDots[i].lngLat.lng ) || ( pathDots[i].lngLat.lng < lngLat.lng && lngLat.lng < pathDots[i-1].lngLat.lng ) ) && 
+        ( ( pathDots[i-1].lngLat.lat < lngLat.lat && lngLat.lat < pathDots[i].lngLat.lat ) || ( pathDots[i].lngLat.lat < lngLat.lat && lngLat.lat < pathDots[i-1].lngLat.lat ) )
+      )
+      return [ pathDots[i-1], pathDots[i] ]
+
+  return null
+}
+
+function addPathDotMarker( pathDot, insertIndex ) {
+
+  var pathDotMarker
+  var pathDotElement = document.createElement('div')
+  pathDotElement.className = 'pathDot'
+  pathDotElement.addEventListener('mousedown', e => {
+    console.log("pathDot mousedown", e)
+    clickedPathDotIndex = Number( e.target.parentElement.querySelector('.pathDotNumber').innerText ) - 1
+    console.log('index: ', clickedPathDotIndex)
+    if( e.buttons === 1 ) {
+      e.stopPropagation()
+      pathDotDrag = true
+    }
+  })
+  pathDotElement.addEventListener('mouseup', e => {
+    console.log("pathDot mouseup", e)
+    pathDotDrag = false
+    sightDrag = false
+    if( hasRoute() ) buildRoute()    
+  })
+
+  var pathDotBack = document.createElement('div')
+  pathDotBack.className = 'pathDotBack'
+
+  var pathDotNumber = document.createElement('div')
+  pathDotNumber.className = 'pathDotNumber'
+  pathDotNumber.innerText = pathDot.index+1
+
+  pathDotElement.appendChild( pathDotBack )
+  pathDotElement.appendChild( pathDotNumber )
+
+  var options = {
+    anchor: 'center'
+  }
+  pathDotMarker = new mapboxgl.Marker( pathDotElement, options )
+  pathDotMarker.setLngLat( pathDot.lngLat /* [ 35.9006, 56.8584 ]*/ )
+  pathDotMarker.addTo( map )
+
+  if( !insertIndex ) {
+    pathDotMarkers.push( pathDotMarker )    
+  }
+  else {
+    pathDotMarkers.splice( insertIndex, 0, pathDotMarker )
+    /* update indexes */
+    for(var i=0; i<pathDotMarkers.length; i++)
+      pathDotMarkers[i].getElement().querySelector('.pathDotNumber').innerText = i+1
+  }
+}
+
+function updateBuildRouteGui() {
+
+  /*
+  var routeEnabled = points.length >= 2
+  document.querySelector('#build-route-button').disabled = !routeEnabled
+  document.querySelector('#profile').disabled = !routeEnabled  
+  */
+}
+
+updateBuildRouteGui()
+
+var emptyRoute = {
+  name: 'Без названия',
+  description: '',
+  distance: 0,
+  duration: 0,
+  sights: [],
+  path: {
+    dots: [],
+    steps: []
+  }
+  /* linePoints: [] */
+}
+var route = deepCopy( emptyRoute )
+
+function deepCopy( json ) {
+
+  return JSON.parse( JSON.stringify( json ) )
+}
+
+function showRouteEdit() {
+
+  document.querySelector('#route-name').value = route.name
+  document.querySelector('#route-description').value = route.description
+
+  document.querySelector('.routeEditDialog').style.display = 'block'
+}
+
+function hideRouteEdit() {
+  document.querySelector('.routeEditDialog').style.display = 'none'  
+}
+
+function saveRoute() {
+
+  route.name = document.querySelector('#point-name').value
+  route.description = document.querySelector('#point-name').description
+}
+
+function saveRouteData( source ) {
+
+  switch( source.id ) {
+    case 'route-name': 
+      route.name = source.value
+      document.querySelector('#route-title').innerText = route.name
+    break
+    case 'route-description': route.description = source.value; break;
+  }
+
+  console.log('saveRouteData: ', route )
+}
+
+function clearAll() {
+
+  removeRouteLine()
+  sightMarkers.forEach( marker => marker.remove() )
+  pathDotMarkers.forEach( marker => marker.remove() )
+  resultRouteJson = null
+
+  route = deepCopy( emptyRoute )
+  sights = []
+  pathDots = []
+  sightMarkers = []
+  pathDotMarkers = []
+
+  document.querySelector('#route-title').innerText = route.name
+
+  console.log('clear all')
+}
+
+/* в этом методе я показаываю, как загрузить данные, пришедшие с сервера */
+function readRoute() {
+
+  console.log('!!!!!!! readRoute')
+
+  clearAll()
+
+  /* это json, который пришёл с сервера */
+  var json = {
+    "name": "Без названия",
+    "description": "",
+    "distance": 3772.486,
+    "duration": 2733.685,
+    "sights": [
+      {
+        "index": 0,
+        "lngLat": {
+          "lng": 35.87578765490127,
+          "lat": 56.86017880160341
+        },
+        "name": "",
+        "description": "",
+        "audio": "",
+        "video": "",
+        "preview": "",
+        "images": [],
+        "position": null
+      },
+      {
+        "index": 1,
+        "lngLat": {
+          "lng": 35.89450422407808,
+          "lat": 56.85060263035254
+        },
+        "name": "",
+        "description": "",
+        "audio": "",
+        "video": "",
+        "preview": "",
+        "images": [],
+        "position": null
+      },
+      {
+        "index": 2,
+        "lngLat": {
+          "lng": 35.93090709256947,
+          "lat": 56.8501331471727
+        },
+        "name": "",
+        "description": "",
+        "audio": "",
+        "video": "",
+        "preview": "",
+        "images": [],
+        "position": null
+      }
+    ],
+    "path": {
+      "dots": [
+        [
+          35.87578765490127,
+          56.86017880160341
+        ],
+        [
+          35.89450422407808,
+          56.85060263035254
+        ],
+        [
+          35.93090709256947,
+          56.8501331471727
+        ]
+      ],
+      "steps": [
+        {
+          "distance": 1558.415,
+          "duration": 1129.286,
+          "dots": [
+            [
+              35.87578765490127,
+              56.86017880160341
+            ],
+            [
+              35.89450422407808,
+              56.85060263035254
+            ]
+          ]
+        },
+        {
+          "distance": 2214.071,
+          "duration": 1604.399,
+          "dots": [
+            [
+              35.89450422407808,
+              56.85060263035254
+            ],
+            [
+              35.93090709256947,
+              56.8501331471727
+            ]
+          ]
+        }
+      ],
+      "distance": 3772.486,
+      "duration": 2733.685
+    }
+  }
+
+  console.log('json: ', json );
+
+  for( var i=0; i<json.sights.length; i++ ) {    
+    
+    var sight = deepCopy( json.sights[i] )
+
+    sights.push( sight )
+    addSightMarker( sight )
+  }
+
+  for( var i=0; i<json.path.dots.length; i++ ) {
+
+    var pathDot = {
+      index: i,
+      lngLat: { lng: json.path.dots[i][0], lat: json.path.dots[i][1] }
+    }
+
+    pathDots.push( pathDot )
+    addPathDotMarker( pathDot )
+  }
+
+  console.log('sights: ', sights )
+  console.log('pathDots: ', pathDots )
+
+  buildRoute()
+}
+
+function uploadRoute() {
+
+  /* здесь загрузка на сервер */
+
+  if( sights.length < 1 ) {
+    alert('Не хватает точек')
+    return
+  }
+
+  if( !resultRouteJson ) {
+
+    if( sights.length >= 2 ) { 
+      alert('Не хватает маршрута')
+      return
+    }
+    if( sights.length == 1 )
+      buildRoute() /* маршрут из 0 линий */    
+  }
+
+  route.sights = deepCopy( sights )
+  route.path.dots = deepCopy( resultRouteJson.routes[0].geometry.coordinates )
+
+  for( var i=0; i<resultRouteJson.routes[0].legs[0].steps.length; i++ ) {
+
+    var step = {
+      distance: resultRouteJson.routes[0].legs[0].steps[i].distance,
+      duration: resultRouteJson.routes[0].legs[0].steps[i].duration,
+      dots: deepCopy( resultRouteJson.routes[0].legs[0].steps[i].geometry.coordinates )
+    }
+    route.path.steps.push( step )
+  }
+  route.path.distance = resultRouteJson.routes[0].legs[0].distance
+  route.path.duration = resultRouteJson.routes[0].legs[0].duration
+  route.distance = route.path.distance
+  route.duration = route.path.duration
+  
+  processSights( route.sights )
+  processPathDots( route.path.dots )
+  processPathSteps( route.path.steps )
+
+  console.log('upload json: ', route )
+
+  /* код загрузки */
+
+  alert('Загрузка на сервер')
+}
+
+function vincentyGreatCircleDistance( longitudeFrom, latitudeFrom, longitudeTo, latitudeTo, earthRadius = 6371000 )
+{
+  var lonFrom = deg2rad( longitudeFrom )
+  var latFrom = deg2rad( latitudeFrom )
+  var lonTo = deg2rad( longitudeTo )
+  var latTo = deg2rad( latitudeTo )
+
+  var lonDelta = lonTo - lonFrom
+  var a = Math.pow( Math.cos( latTo ) * Math.sin( lonDelta ), 2  ) +
+          Math.pow( Math.cos( latFrom ) * Math.sin( latTo ) - Math.sin( latFrom ) * Math.cos( latTo ) * Math.cos( lonDelta ), 2 )
+  var b = Math.sin( latFrom ) * Math.sin( latTo ) + Math.cos( latFrom ) * Math.cos( latTo ) * Math.cos( lonDelta );
+
+  var angle = Math.atan2( Math.sqrt( a ), b )
+  return angle * earthRadius;
+}
+
+function deg2rad( deg )  {
+  return deg * Math.PI / 180;
+}
+
+function processSights( sights ) {
+
+  /* преобразовываем координаты в формат сервера */
+
+  var lat, lon
+  for(var i=0; i<sights.length; i++) {
+    lat = sights[i].lngLat.lat
+    lon = sights[i].lngLat.lng
+    sights[i].position = [ lat, lon ]
+    delete sights[i]['lngLat']
+  }
+
+  /* я вот не помню, зачем я это преобразовывал, по-моему, это не нужно */
+  /* по-моему, я здесь просто показал, где и как можно преобразовать координаты */  
+}
+
+function processPathDots( dots ) {
+
+  /* преобразовываем координаты в формат сервера */
+
+/*
+  var lat, lon
+  for(var i=0; i<dots.length; i++) {
+    lon = dots[i][0]
+    lat = dots[i][1]
+    dots[i][0] = lat
+    dots[i][1] = lon
+  }
+*/
+
+  /* я вот не помню, зачем я это преобразовывал, по-моему, это не нужно */  
+}
+
+function processPathSteps( steps ) {
+  
+  /* ничего, оставлю на всякий случай */
+}
+
+function showSightEdit() {
+
+  var sight = sights[ clickedSightIndex ]
+
+  console.log('showSightEdit: ', sight )
+
+  document.querySelector('#sight-number').innerText = sight.index+1
+  document.querySelector('#sight-lat').innerText = sight.lngLat.lat.toFixed(4)
+  document.querySelector('#sight-lon').innerText = sight.lngLat.lng.toFixed(4)
+
+  document.querySelector('#sight-name').value = sight.name
+  document.querySelector('#sight-description').value = sight.description
+  document.querySelector('#sight-audio').value = sight.audio
+  document.querySelector('#sight-video').value = sight.video
+  document.querySelector('#sight-preview').value = sight.preview
+
+  var imagesText = ''
+  for(var i=0; i<sight.images.length; i++)
+    imagesText += sight.images[i] + '\n'
+  document.querySelector('#sight-images').value = imagesText
+
+  document.querySelector('.sightEditDialog').style.display = 'block'  
+}
+
+function saveSightData( source ) {
+
+  var index = Number( document.querySelector('#sight-number').innerText ) - 1
+  var sight = sights[ index ]
+
+  switch( source.id ) {
+    
+    case 'sight-name': 
+      sight.name = source.value
+    break
+    
+    case 'sight-description': 
+      sight.description = source.value
+    break
+    
+    case 'sight-audio': 
+      sight.audio = source.value
+    break
+    
+    case 'sight-video': 
+      sight.video = source.value
+    break
+    
+    case 'sight-preview': 
+      sight.preview = source.value
+
+      var sightMarker = sightMarkers[ index ]
+      sightMarker.getElement().querySelector('.sightImage').src = sight.preview      
+    break
+    
+    case 'sight-images': 
+      sight.images = source.value.split('\n')
+    break
+  }
+
+  console.log('save sight: ', sight)
+}
+
+function hideSightEdit() {
+
+  document.querySelector('.sightEditDialog').style.display = 'none'  
+}
+
+function removeSight( index ) {
+
+  var sightMarker = sightMarkers[ index ]
+  sightMarker.remove()
+
+  sights.splice( index, 1 )
+  sightMarkers.splice( index, 1 )
+  clickedSightIndex = -1
+
+  for(var i=0; i<sights.length; i++) {
+    sights[i].index = i
+    sightMarkers[i].getElement().querySelector('.sightNumber').innerText = i+1
+  }
+
+  updateBuildRouteGui()
+}
+
+function removePathDot( index ) {
+
+  var pathDotMarker = pathDotMarkers[ index ]
+  pathDotMarker.remove()
+
+  pathDots.splice( index, 1 )
+  pathDotMarkers.splice( index, 1 )
+  clickedPathDotIndex = -1
+
+  for(var i=0; i<pathDots.length; i++) {
+    pathDots[i].index = i
+    pathDotMarkers[i].getElement().querySelector('.pathDotNumber').innerText = i+1
+  }
+
+  updateBuildRouteGui()
+}
+
+
+var contextMenuMarker
+var contextMenuShown = false
+var contextMenuObject
+
+createContextMenu()
+
+function createContextMenu() {
+  var menuDiv = document.createElement('div')
+  menuDiv.className = 'contextMenu'
+  // markerElement.innerHTML = contextMenuHtml
+
+  menuDiv.onmousedown = e => {
+    console.log('menuDiv.mousedown')
+    e.stopPropagation()
+  }
+
+  var addSightDiv = document.createElement('div')
+  addSightDiv.id = 'add-sight'
+  addSightDiv.className = 'contextMenuElement'
+  addSightDiv.innerText = '+ Добавить точку'
+  addSightDiv.onmouseup = e => {
+
+    if( e.target.classList.contains('contextMenuElementDisabled') )
+      return
+
+    console.log('add clicked')
+    addSight( contextMenuMarker._lngLat )
+    hideContextMenu()
+    if( hasRoute() ) buildRoute()    
+  }
+  var addPathDotDiv = document.createElement('div')
+  addPathDotDiv.id = 'add-path-dot'
+  addPathDotDiv.className = 'contextMenuElement'
+  addPathDotDiv.innerText = '+ Добавить точку пути'
+  addPathDotDiv.onmouseup = e => {
+
+    if( e.target.classList.contains('contextMenuElementDisabled') )
+      return
+
+    var lngLat = contextMenuObject === 'sight' ? sights[ clickedSightIndex ].lngLat : contextMenuMarker._lngLat
+    console.log('add clicked')
+    addPathDot( lngLat )
+    hideContextMenu()
+    if( hasRoute() ) buildRoute()
+  }
+
+  var removeSightDiv = document.createElement('div')
+  removeSightDiv.id = 'remove-sight'
+  removeSightDiv.className = 'contextMenuElement'
+  removeSightDiv.innerText = '- Удалить точку'
+  removeSightDiv.onmouseup = e => {
+
+    if( e.target.classList.contains('contextMenuElementDisabled') )
+      return
+
+    console.log('remove clicked')
+    removeSight( clickedSightIndex )
+    hideContextMenu()
+    if( hasRoute() ) buildRoute()    
+  }
+  var removePathDotDiv = document.createElement('div')
+  removePathDotDiv.id = 'remove-path-dot'
+  removePathDotDiv.className = 'contextMenuElement'
+  removePathDotDiv.innerText = '- Удалить точку пути'
+  removePathDotDiv.onmouseup = e => {
+
+    if( e.target.classList.contains('contextMenuElementDisabled') )
+      return
+
+    console.log('remove clicked')
+    removePathDot( clickedPathDotIndex )
+    hideContextMenu()
+    if( hasRoute() ) buildRoute()
+  }
+
+  var buildRouteDiv = document.createElement('div')
+  buildRouteDiv.id = 'build-route'
+  buildRouteDiv.className = 'contextMenuElement'
+  buildRouteDiv.innerText = '> Построить маршрут'
+  buildRouteDiv.onmouseup = e => {
+    console.log('build route clicked')
+    buildRoute()
+    hideContextMenu()
+  }
+
+  menuDiv.appendChild( addSightDiv )
+  menuDiv.appendChild( addPathDotDiv )
+  menuDiv.appendChild( removeSightDiv )
+  menuDiv.appendChild( removePathDotDiv )
+  // menuDiv.appendChild( buildRouteDiv )
+
+  var options = {
+    anchor: 'top-left'
+  }
+  contextMenuMarker = new mapboxgl.Marker( menuDiv, options )
+}
+
+function showContextMenu( object, clickLngLat, markerLngLat  ) {
+
+  // console.log( type )
+  // console.log( contextMenuMarker )
+
+  if( object==='map' ) {
+    contextMenuMarker._element.querySelector('#add-sight').classList.remove('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#add-path-dot').classList.remove('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-sight').classList.add('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-path-dot').classList.add('contextMenuElementDisabled')
+  }
+  else if( object==='sight' ) {
+    contextMenuMarker._element.querySelector('#add-sight').classList.add('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#add-path-dot').classList.remove('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-sight').classList.remove('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-path-dot').classList.add('contextMenuElementDisabled')
+  }
+  else if( object==='pathDot' ) {
+    contextMenuMarker._element.querySelector('#add-sight').classList.add('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#add-path-dot').classList.add('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-sight').classList.add('contextMenuElementDisabled')
+    contextMenuMarker._element.querySelector('#remove-path-dot').classList.remove('contextMenuElementDisabled')
+  }
+
+  contextMenuMarker.setLngLat( clickLngLat )
+  contextMenuMarker.addTo( map )
+  contextMenuShown = true
+  contextMenuObject = object
+} 
+
+function hideContextMenu() {
+  contextMenuMarker.remove()
+  contextMenuShown = false
+}
+
+var emptyRouteJson = {
+  routes: [
+    {
+      geometry: {
+        coordinates: []
+      },
+      legs: [
+        {
+          duration: 0,
+          distance: 0,
+          steps: []
+        }
+      ]
+    }
+  ]
+}
+var resultRouteJson = null
+var maxSightsInRequest = 25 /* 25 3  старый параметр, сейчас не используется */
+
+function buildRoute() {
+
+  console.log('buildRoute()')
+
+  /*
+  if( sights.length < 1 ) {
+    alert('Добавьте точек')
+    return
+  }
+  */
+
+  // resultRouteJson = null
+
+  // requestRouteIter( 0 )
+
+  /* этот json мы формируем в формате mapbox */
+  /* чтобы mapbox его понял и добавил на карту */
+
+  var json = deepCopy( emptyRouteJson )
+
+  /* copy coordinates */
+  var coordinate
+  for( var i=0; i<pathDots.length; i++ ) {
+    coordinate = [ pathDots[i].lngLat.lng, pathDots[i].lngLat.lat ]
+    json.routes[0].geometry.coordinates.push( coordinate )
+  }
+
+  /* build and count way steps */
+  var prevCoordinate
+  for( var i=1; i<json.routes[0].geometry.coordinates.length; i++ ) {
+    
+    prevCoordinate = json.routes[0].geometry.coordinates[i-1]
+    coordinate = json.routes[0].geometry.coordinates[i]
+
+    var step = {
+      duration: 0,
+      distance: 0,
+      geometry: {
+        coordinates: []
+      }
+    }
+    step.geometry.coordinates.push( prevCoordinate, coordinate )
+    step.distance = Number( vincentyGreatCircleDistance( prevCoordinate[0], prevCoordinate[1], coordinate[0], coordinate[1] ).toFixed(3) )
+    step.duration = Number( (step.distance / 1.38).toFixed(3) ) /* 1.38 m/s == 5 km/h */
+
+    json.routes[0].legs[0].steps.push( step )
+
+    json.routes[0].legs[0].distance += step.distance
+    json.routes[0].legs[0].duration += step.duration
+  }
+  json.routes[0].distance = json.routes[0].legs[0].distance
+  json.routes[0].duration = json.routes[0].legs[0].duration
+
+  console.log('json: ', json)
+
+  addRouteLine( json )
+
+  resultRouteJson = json
+}
+
+/* Этой старый метод, он уже не используется */
+/* Но лучше его пока сохранить на всякий случай */
+function requestRouteIter( fromIndex ) {
+
+  var toIndex = Math.min( fromIndex + (maxPointsInRequest-1), points.length-1 ) // -1 т.к. fromIndex включён  
+
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function() {
+
+    if( xhr.readyState === XMLHttpRequest.DONE ) {
+
+      if( xhr.status === 200 ) {
+        var json = JSON.parse( this.responseText )
+        console.log( json )
+
+        if( !resultRouteJson )
+          resultRouteJson = json
+        else {
+
+          /* удаляем последнюю точку, т.к. в след. она - первая */
+          resultRouteJson.waypoints.splice( resultRouteJson.waypoints.length-1, 1 ) 
+          
+          Array.prototype.push.apply( resultRouteJson.waypoints, json.waypoints )
+          Array.prototype.push.apply( resultRouteJson.routes[0].geometry.coordinates, json.routes[0].geometry.coordinates )
+
+          resultRouteJson.routes[0].distance += json.routes[0].distance
+          resultRouteJson.routes[0].duration += json.routes[0].duration
+        }
+
+        if( toIndex === points.length-1 ) /* last */
+          addRouteLine( resultRouteJson )
+        else
+          requestRouteIter( toIndex )        
+      }
+    }
+  }
+
+  var profile = document.querySelector('#profile').value /* mapbox/walking, mapbox/cycling, mapbox/driving, mapbox/driving-traffic */
+
+  var coords = ''
+  var waypoints = ''
+  var point
+
+  var iwaypoint = 0
+
+  for(var i=fromIndex; i<=toIndex; i++) {
+    point = points[i]
+    console.log('point', point )
+    coords += point.lngLat.lng+','+point.lngLat.lat
+    waypoints += iwaypoint
+    iwaypoint++;
+
+    if( i<toIndex ) {
+      coords += ';'
+      waypoints += ';'
+    }
+  }
+
+  console.log('route request coords: ', coords)
+  console.log('route request waypoints: ', waypoints)
+
+  var accessToken = mapboxgl.accessToken
+  var request = 'https://api.mapbox.com/directions/v5/'+profile+'/'+coords+'?geometries=geojson&steps=true&waypoints='+waypoints+'&access_token='+accessToken
+  console.log( request )
+  xhr.open("GET", request, true);
+  xhr.send();
+}
+
+function addRouteLine( json ) {
+
+  removeRouteLine()
+
+  map.addSource( 'route', 
+    {
+      'type': 'geojson',
+      'data': {
+        'type': 'Feature',
+        'properties': {},
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': json.routes[0].geometry.coordinates
+        }
+      }
+    }
+  );  
+
+  map.addLayer( {
+    'id': 'route',
+    'type': 'line',
+    'source': 'route',
+    'layout': {
+      'line-join': 'round',
+      'line-cap': 'round'
+    },
+    'paint': {
+      'line-color': '#526AE8',
+      'line-width': 3
+    }
+  });
+}
+
+function removeRouteLine() {
+
+  if( map.getLayer('route') )
+    map.removeLayer('route')
+  
+  if( map.getSource('route') )
+    map.removeSource('route')
+}
+
+function hasRoute() {
+
+  return map.getLayer('route')
+}
+
+</script>
+
+</body>
+</html>
